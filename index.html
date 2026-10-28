@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemitoScan PRO - Escáner de Remitos & Google Sheets</title>
+
+    <!-- Meta Tags para Previsualización en WhatsApp / Open Graph -->
+    <meta property="og:title" content="RemitoScan PRO - Control de Remitos por OCR & Google Sheets">
+    <meta property="og:description" content="Escanea remitos por foto, clasifica Ingreso/Egreso y sincroniza en tiempo real con Google Sheets.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Configuración para PWA (Instalar en el celular) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RemitoScan">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- OCR Tesseract.js -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col">
+
+    <!-- Header / Navbar Top -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-emerald-500 to-teal-400 p-2 rounded-xl text-slate-950 font-bold shadow-lg shadow-emerald-500/20">
+                    <i class="ph ph-scan text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none tracking-tight">RemitoScan <span class="text-emerald-400 text-xs font-semibold uppercase px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded ml-1">Google Sheets</span></h1>
+                    <p class="text-xs text-slate-400 mt-0.5">Control de Ingresos y Egresos por OCR</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button onclick="openSheetsConfigModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1.5 shadow-sm">
+                    <i class="ph ph-file-spreadsheet text-lg"></i>
+                    <span class="hidden sm:inline">Conectar Google Sheets</span>
+                </button>
+                <button onclick="openGitHubGuideModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700 transition flex items-center gap-1.5 shadow-sm">
+                    <i class="ph ph-github-logo text-lg text-emerald-400"></i>
+                    <span class="hidden sm:inline">Publicar Link Gratis</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Banner Explicativo GitHub Pages & Sheets -->
+        <div class="bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-emerald-500/20 text-emerald-400 p-2.5 rounded-xl flex-shrink-0">
+                    <i class="ph ph-cloud-arrow-up text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <span>¿Cómo tener tu link .github.io y conectar Google Sheets?</span>
+                        <span id="sheets-status-badge" class="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30">Sheets no conectado</span>
+                    </h2>
+                    <p class="text-xs text-slate-300 mt-0.5">Puedes subir este archivo a <strong>GitHub Pages</strong> gratis (obtendrás un link como <code class="text-emerald-400">tu-usuario.github.io/remitos</code>) y conectar tus escaneos directamente a tu <strong>Google Sheets</strong>.</p>
+                </div>
+            </div>
+            <div class="flex gap-2 w-full md:w-auto">
+                <button onclick="openSheetsConfigModal()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md">
+                    <i class="ph ph-gear text-base"></i> Configurar Sheets
+                </button>
+                <button onclick="openGitHubGuideModal()" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 border border-slate-700">
+                    <i class="ph ph-rocket-launch text-base text-emerald-400"></i> Pasos GitHub Pages
+                </button>
+            </div>
+        </div>
+
+        <!-- Section: Capture & Form Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Scanner Box (Left Column) -->
+            <div class="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-3">
+                        <i class="ph ph-camera text-xl text-emerald-600"></i>
+                        Captura de Remito
+                    </h2>
+
+                    <!-- Camera / Upload Viewport -->
+                    <div id="drop-area" class="relative border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-emerald-500 transition bg-slate-50 min-h-[220px] flex flex-col items-center justify-center group cursor-pointer overflow-hidden">
+                        
+                        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
+                        
+                        <!-- Placeholder State -->
+                        <div id="upload-placeholder" class="space-y-2 py-4">
+                            <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition duration-300">
+                                <i class="ph ph-camera-plus text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-700">Tocar para sacar foto al Remito</p>
+                                <p class="text-xs text-slate-400 mt-0.5">O subir archivo de imagen</p>
+                            </div>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <img id="image-preview" class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-slate-950/90 rounded-xl z-10" alt="Previsualización Remito" />
+
+                        <!-- OCR Processing Overlay -->
+                        <div id="ocr-loading" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-white p-4">
+                            <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                            <p class="text-sm font-semibold">Procesando OCR...</p>
+                            <p id="ocr-status-text" class="text-xs text-slate-300 mt-1">Escaneando número de remito...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex gap-2">
+                    <button onclick="triggerCamera()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                        <i class="ph ph-aperture text-base"></i> Abrir Cámara
+                    </button>
+                    <button id="btn-retake" onclick="resetCapture()" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                        <i class="ph ph-arrows-counter-clockwise text-base"></i> Cambiar Foto
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form / Data Confirmation Box (Right Column) -->
+            <div class="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i class="ph ph-note-pencil text-xl text-emerald-600"></i>
+                        Datos del Registro
+                    </h2>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        
+                        <!-- ID Generado (Solo Lectura) -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                ID Interno Autogenerado
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="input-id" readonly class="w-full bg-slate-100 border border-slate-200 text-slate-600 font-mono text-sm rounded-xl px-3.5 py-2.5 font-bold cursor-not-allowed">
+                                <i class="ph ph-lock-key absolute right-3 top-3 text-slate-400"></i>
+                            </div>
+                        </div>
+
+                        <!-- Número de Remito Reconocido -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Nº de Remito Detectado <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="input-remito" placeholder="Ej: 0001-00023412" class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-slate-900 font-mono text-sm rounded-xl px-3.5 py-2.5 transition outline-none font-bold">
+                                <i class="ph ph-barcode absolute right-3 top-3 text-slate-400"></i>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Se detecta por OCR o se puede editar manualmente.</p>
+                        </div>
+
+                        <!-- Fecha Autogenerada -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                Fecha de Registro
+                            </label>
+                            <input type="text" id="input-fecha" readonly class="w-full bg-slate-100 border border-slate-200 text-slate-600 text-sm rounded-xl px-3.5 py-2.5 cursor-not-allowed">
+                        </div>
+
+                        <!-- Hora Autogenerada -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                Hora de Registro
+                            </label>
+                            <input type="text" id="input-hora" readonly class="w-full bg-slate-100 border border-slate-200 text-slate-600 text-sm rounded-xl px-3.5 py-2.5 cursor-not-allowed">
+                        </div>
+
+                    </div>
+
+                    <!-- Campo de Observaciones Adicionales -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            Observaciones (Opcional)
+                        </label>
+                        <input type="text" id="input-obs" placeholder="Ej: Proveedor Lácteos S.A. / Bultos ok" class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-slate-900 text-xs rounded-xl px-3.5 py-2 transition outline-none">
+                    </div>
+                </div>
+
+                <!-- Action Buttons: INGRESO / EGRESO -->
+                <div class="mt-6 pt-4 border-t border-slate-100">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Seleccionar Tipo de Movimiento para Guardar</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-ingreso" onclick="saveRecord('Ingreso')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="ph ph-arrow-circle-down text-xl"></i>
+                            INGRESO
+                        </button>
+                        
+                        <button id="btn-egreso" onclick="saveRecord('Egreso')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="ph ph-arrow-circle-up text-xl"></i>
+                            EGRESO
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Section: Sheet / Table Data -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            
+            <!-- Table Controls / Header -->
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-table text-xl text-slate-700"></i>
+                    <h3 class="font-bold text-slate-800 text-sm">Planilla de Remitos Registrados</h3>
+                    <span id="record-count" class="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+
+                <!-- Search & Filters -->
+                <div class="flex items-center gap-2">
+                    <button onclick="exportToCSV()" class="bg-white border border-slate-300 text-slate-700 text-xs px-2.5 py-1.5 rounded-xl font-semibold hover:bg-slate-50 flex items-center gap-1">
+                        <i class="ph ph-download-simple text-emerald-600 text-sm"></i> CSV
+                    </button>
+                    <div class="relative flex-1 sm:w-56">
+                        <input type="text" id="search-input" onkeyup="filterRecords()" placeholder="Buscar remito, ID u obs..." class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:border-emerald-500 focus:outline-none">
+                        <i class="ph ph-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-sm"></i>
+                    </div>
+
+                    <select id="filter-type" onchange="filterRecords()" class="bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-none">
+                        <option value="ALL">Todos los tipos</option>
+                        <option value="Ingreso">Solo Ingresos</option>
+                        <option value="Egreso">Solo Egresos</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                            <th class="p-3">Foto</th>
+                            <th class="p-3">ID Interno</th>
+                            <th class="p-3">Nº Remito</th>
+                            <th class="p-3">Tipo</th>
+                            <th class="p-3">Fecha y Hora</th>
+                            <th class="p-3">Observaciones</th>
+                            <th class="p-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-tbody" class="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                        <!-- Dynamic Records Rendered Here -->
+                    </tbody>
+                </table>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="p-8 text-center text-slate-400 space-y-2">
+                    <i class="ph ph-folder-open text-4xl text-slate-300"></i>
+                    <p class="text-xs font-medium">No hay remitos registrados todavía.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal Google Sheets Script Config -->
+    <div id="sheets-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-2xl max-w-lg w-full overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-emerald-950 text-white">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="ph ph-file-spreadsheet text-emerald-400 text-xl"></i> Conectar con Google Sheets (Google Apps Script)
+                </h3>
+                <button onclick="closeSheetsConfigModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto max-h-[75vh]">
+                <p>
+                    Puedes hacer que cada remito escaneado se envíe automáticamente a tu propia planilla de **Google Sheets**.
+                </p>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">Paso 1: Copiar código en Google Apps Script</label>
+                    <p class="text-slate-500 mb-2">En tu Google Sheets ve a <strong>Extensiones > Apps Script</strong>, pega este código y despliega como Web App (Acceso: Cualquier persona):</p>
+                    
+                    <textarea readonly class="w-full bg-slate-900 text-emerald-400 font-mono text-[10px] p-2.5 rounded-xl h-28 border border-slate-800 focus:outline-none select-all" id="apps-script-code">
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([data.id, data.remito, data.tipo, data.fecha, data.hora, data.observaciones]);
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">Paso 2: Pegar la URL Web App de Google Apps Script</label>
+                    <input type="text" id="input-sheets-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono text-xs rounded-xl p-2.5 focus:border-emerald-500 outline-none">
+                </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button onclick="closeSheetsConfigModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-xl font-bold text-xs">Cancelar</button>
+                <button onclick="saveSheetsUrl()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs">Guardar Conexión</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Guía GitHub Pages (para link como el de la imagen) -->
+    <div id="github-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-2xl max-w-lg w-full overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-900 text-white">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="ph ph-github-logo text-emerald-400 text-xl"></i> Crear Link `.github.io` Gratis
+                </h3>
+                <button onclick="closeGitHubGuideModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto max-h-[75vh]">
+                <p>
+                    Para tener un link profesional como el de la imagen (ej: <span class="font-mono text-emerald-700 bg-emerald-50 px-1 font-bold">https://tu-usuario.github.io/remito-scan</span>) para enviar por WhatsApp:
+                </p>
+
+                <div class="space-y-3">
+                    <div class="flex gap-3 items-start bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <div>
+                            <p class="font-bold text-slate-800">Crea una cuenta en GitHub.com</p>
+                            <p class="text-slate-500 mt-0.5">Ingresa a <a href="https://github.com" target="_blank" class="text-emerald-600 underline font-bold">github.com</a> y regístrate gratis.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 items-start bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <div>
+                            <p class="font-bold text-slate-800">Crea un Repositorio</p>
+                            <p class="text-slate-500 mt-0.5">Haz clic en <strong>New Repository</strong>, nómbralo <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">remitos</code> y asegúrate de marcarlo como <strong>Public</strong>.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 items-start bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <div>
+                            <p class="font-bold text-slate-800">Sube este código como index.html</p>
+                            <p class="text-slate-500 mt-0.5">Sube el archivo <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">index.html</code> al repositorio.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 items-start bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">4</span>
+                        <div>
+                            <p class="font-bold text-slate-800">Activa GitHub Pages</p>
+                            <p class="text-slate-500 mt-0.5">Ve a <strong>Settings > Pages</strong>, en Source selecciona la rama <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">main</code> y guarda. ¡Listo! Te dará tu link para compartir por WhatsApp.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="closeGitHubGuideModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-xs">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para ver Foto Completa -->
+    <div id="image-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative max-w-3xl w-full flex flex-col items-center">
+            <button onclick="closeModal()" class="absolute -top-10 right-0 text-white text-2xl hover:text-emerald-400">
+                <i class="ph ph-x-circle text-3xl"></i>
+            </button>
+            <img id="modal-img" src="" alt="Remito Ampliado" class="max-h-[80vh] w-auto rounded-xl object-contain shadow-2xl border border-slate-800">
+            <p id="modal-caption" class="text-white text-xs font-mono mt-3 bg-slate-800 px-3 py-1 rounded-full"></p>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State Management
+        let records = JSON.parse(localStorage.getItem('remito_records')) || [];
+        let currentImageData = null;
+        let idCounter = parseInt(localStorage.getItem('remito_id_counter')) || 1;
+        let googleSheetsUrl = localStorage.getItem('remito_sheets_url') || '';
+
+        // Initialize App
+        window.onload = function() {
+            updateTimestamp();
+            generateNextId();
+            renderRecords();
+            updateStats();
+            checkSheetsStatus();
+            
+            // Re-update timestamps every minute
+            setInterval(updateTimestamp, 60000);
+        };
+
+        function checkSheetsStatus() {
+            const badge = document.getElementById('sheets-status-badge');
+            if (googleSheetsUrl) {
+                badge.innerText = 'Sheets Conectado ✓';
+                badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30';
+                document.getElementById('input-sheets-url').value = googleSheetsUrl;
+            } else {
+                badge.innerText = 'Sheets no conectado';
+                badge.className = 'bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30';
+            }
+        }
+
+        function saveSheetsUrl() {
+            const url = document.getElementById('input-sheets-url').value.trim();
+            googleSheetsUrl = url;
+            localStorage.setItem('remito_sheets_url', url);
+            checkSheetsStatus();
+            closeSheetsConfigModal();
+        }
+
+        // Generar ID Unico Incremental
+        function generateNextId() {
+            const formattedId = 'REC-' + String(idCounter).padStart(4, '0');
+            document.getElementById('input-id').value = formattedId;
+        }
+
+        // Actualizar Fecha y Hora Actuales
+        function updateTimestamp() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+            document.getElementById('input-fecha').value = dateStr;
+            document.getElementById('input-hora').value = timeStr;
+        }
+
+        // Trigger Camera / File Upload
+        function triggerCamera() {
+            document.getElementById('file-input').click();
+        }
+
+        // Handling Selected File / Photo
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageData = e.target.result;
+                
+                // Show Image Preview
+                const imgElement = document.getElementById('image-preview');
+                imgElement.src = currentImageData;
+                imgElement.classList.remove('hidden');
+                document.getElementById('btn-retake').classList.remove('hidden');
+
+                // Perform OCR Scanning
+                processOCR(currentImageData);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // OCR Processing using Tesseract.js
+        function processOCR(imageData) {
+            const loadingOverlay = document.getElementById('ocr-loading');
+            const statusText = document.getElementById('ocr-status-text');
+            loadingOverlay.classList.remove('hidden');
+
+            Tesseract.recognize(
+                imageData,
+                'spa', // Spanish language model
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            statusText.innerText = `Leyendo remito... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                loadingOverlay.classList.add('hidden');
+                extractRemitoNumber(text);
+            }).catch(err => {
+                console.error("OCR Error:", err);
+                loadingOverlay.classList.add('hidden');
+            });
+        }
+
+        // Extraer Patrón de Número de Remito de Texto Reconoicdo
+        function extractRemitoNumber(text) {
+            const remitoRegex = /\b\d{4}[-\s]?\d{8}\b|\b\d{8,12}\b/;
+            const match = text.match(remitoRegex);
+
+            const inputRemito = document.getElementById('input-remito');
+            if (match) {
+                inputRemito.value = match[0].replace(/\s+/g, '');
+                inputRemito.classList.add('border-emerald-500', 'bg-emerald-50');
+                setTimeout(() => inputRemito.classList.remove('bg-emerald-50'), 1500);
+            } else {
+                const digitsOnly = text.replace(/[^0-9]/g, '');
+                if (digitsOnly.length >= 6) {
+                    inputRemito.value = digitsOnly.substring(0, 12);
+                }
+            }
+        }
+
+        // Guardar Registro (Ingreso o Egreso)
+        function saveRecord(tipo) {
+            const remitoNum = document.getElementById('input-remito').value.trim();
+            
+            if (!remitoNum) {
+                alert('Por favor, ingresa o escanea el número de remito.');
+                document.getElementById('input-remito').focus();
+                return;
+            }
+
+            const record = {
+                id: document.getElementById('input-id').value,
+                remito: remitoNum,
+                tipo: tipo, // 'Ingreso' o 'Egreso'
+                fecha: document.getElementById('input-fecha').value,
+                hora: document.getElementById('input-hora').value,
+                observaciones: document.getElementById('input-obs').value.trim() || '-',
+                image: currentImageData || null
+            };
+
+            // Send to Google Sheets if Configured
+            if (googleSheetsUrl) {
+                fetch(googleSheetsUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
+                }).catch(err => console.error("Error al sincronizar con Google Sheets:", err));
+            }
+
+            // Add Record to Array & Save
+            records.unshift(record);
+            idCounter++;
+
+            localStorage.setItem('remito_records', JSON.stringify(records));
+            localStorage.setItem('remito_id_counter', idCounter.toString());
+
+            // Reset Input Controls & Render
+            resetForm();
+            renderRecords();
+            updateStats();
+        }
+
+        // Reset Inputs after saving
+        function resetForm() {
+            document.getElementById('input-remito').value = '';
+            document.getElementById('input-obs').value = '';
+            resetCapture();
+            generateNextId();
+        }
+
+        // Reset Image Capture state
+        function resetCapture() {
+            currentImageData = null;
+            document.getElementById('image-preview').classList.add('hidden');
+            document.getElementById('image-preview').src = '';
+            document.getElementById('btn-retake').classList.add('hidden');
+            document.getElementById('file-input').value = '';
+        }
+
+        // Render Table Records
+        function renderRecords(dataToRender = records) {
+            const tbody = document.getElementById('records-tbody');
+            const emptyState = document.getElementById('empty-state');
+            document.getElementById('record-count').innerText = dataToRender.length;
+
+            tbody.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            dataToRender.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+                const isIngreso = item.tipo === 'Ingreso';
+                const badgeClass = isIngreso 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                    : 'bg-rose-100 text-rose-800 border-rose-200';
+                
+                const iconBadge = isIngreso ? 'ph-arrow-down-left' : 'ph-arrow-up-right';
+
+                const imgThumbnail = item.image 
+                    ? `<img src="${item.image}" onclick="openModal('${item.id}')" class="w-10 h-10 object-cover rounded-lg cursor-pointer border border-slate-200 hover:scale-105 transition" />`
+                    : `<div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="ph ph-image-broken text-lg"></i></div>`;
+
+                tr.innerHTML = `
+                    <td class="p-3">${imgThumbnail}</td>
+                    <td class="p-3 font-mono font-bold text-slate-900">${item.id}</td>
+                    <td class="p-3 font-mono text-emerald-700 font-bold">${item.remito}</td>
+                    <td class="p-3">
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClass}">
+                            <i class="ph ${iconBadge}"></i>
+                            ${item.tipo}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-500 whitespace-nowrap">
+                        <div class="font-medium text-slate-800">${item.fecha}</div>
+                        <div class="text-[10px] text-slate-400">${item.hora} hs</div>
+                    </td>
+                    <td class="p-3 text-slate-600 max-w-xs truncate">${item.observaciones}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                            <button onclick="shareRecordWhatsApp('${item.id}')" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Enviar por WhatsApp">
+                                <i class="ph ph-whatsapp-logo text-base"></i>
+                            </button>
+                            <button onclick="openModal('${item.id}')" class="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition" title="Ver detalle">
+                                <i class="ph ph-eye text-base"></i>
+                            </button>
+                            <button onclick="deleteRecord('${item.id}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Eliminar">
+                                <i class="ph ph-trash text-base"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Compartir registro especifico por WhatsApp
+        function shareRecordWhatsApp(id) {
+            const item = records.find(r => r.id === id);
+            if (!item) return;
+
+            const text = `📦 *DETALLE DE REMITO*\n` +
+                         `• *ID Interno:* ${item.id}\n` +
+                         `• *Nº Remito:* ${item.remito}\n` +
+                         `• *Movimiento:* ${item.tipo}\n` +
+                         `• *Fecha:* ${item.fecha} a las ${item.hora}\n` +
+                         `• *Observación:* ${item.observaciones}`;
+
+            const encodedText = encodeURIComponent(text);
+            window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+        }
+
+        // Filter & Search Records
+        function filterRecords() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filterType = document.getElementById('filter-type').value;
+
+            const filtered = records.filter(item => {
+                const matchesSearch = item.remito.toLowerCase().includes(searchTerm) ||
+                                      item.id.toLowerCase().includes(searchTerm) ||
+                                      item.observaciones.toLowerCase().includes(searchTerm);
+                
+                const matchesType = filterType === 'ALL' || item.tipo === filterType;
+
+                return matchesSearch && matchesType;
+            });
+
+            renderRecords(filtered);
+        }
+
+        // Delete Single Record
+        function deleteRecord(id) {
+            if (confirm(`¿Estás seguro de eliminar el registro ${id}?`)) {
+                records = records.filter(r => r.id !== id);
+                localStorage.setItem('remito_records', JSON.stringify(records));
+                renderRecords();
+                updateStats();
+            }
+        }
+
+        // Update Summary Cards Stats
+        function updateStats() {
+            const total = records.length;
+            const ingresos = records.filter(r => r.tipo === 'Ingreso').length;
+            const egresos = records.filter(r => r.tipo === 'Egreso').length;
+
+            const todayStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const todayCount = records.filter(r => r.fecha === todayStr).length;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-ingresos').innerText = ingresos;
+            document.getElementById('stat-egresos').innerText = egresos;
+            document.getElementById('stat-today').innerText = todayCount;
+        }
+
+        // Export Data to CSV (Excel compatible)
+        function exportToCSV() {
+            if (records.length === 0) {
+                alert('No hay registros para exportar.');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // UTF-8 BOM for Excel
+            csvContent += "ID Interno;Numero Remito;Tipo Movimiento;Fecha;Hora;Observaciones\n";
+
+            records.forEach(r => {
+                const row = [
+                    `"${r.id}"`,
+                    `"${r.remito}"`,
+                    `"${r.tipo}"`,
+                    `"${r.fecha}"`,
+                    `"${r.hora}"`,
+                    `"${r.observaciones.replace(/"/g, '""')}"`
+                ].join(";");
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Planilla_Remitos_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Modals Logic
+        function openModal(id) {
+            const item = records.find(r => r.id === id);
+            if (!item || !item.image) return;
+
+            document.getElementById('modal-img').src = item.image;
+            document.getElementById('modal-caption').innerText = `${item.id} - Remito: ${item.remito} (${item.tipo})`;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        function openSheetsConfigModal() {
+            document.getElementById('sheets-modal').classList.remove('hidden');
+        }
+
+        function closeSheetsConfigModal() {
+            document.getElementById('sheets-modal').classList.add('hidden');
+        }
+
+        function openGitHubGuideModal() {
+            document.getElementById('github-modal').classList.remove('hidden');
+        }
+
+        function closeGitHubGuideModal() {
+            document.getElementById('github-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
