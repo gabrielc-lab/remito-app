@@ -70,7 +70,7 @@
                 <div>
                     <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <span>¿Cómo tener tu link .github.io y conectar Google Sheets?</span>
-                        <span id="sheets-status-badge" class="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30">Sheets no conectado</span>
+                        <span id="sheets-status-badge" class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30">Sheets Conectado ✓</span>
                     </h2>
                     <p class="text-xs text-slate-300 mt-0.5">Puedes subir este archivo a <strong>GitHub Pages</strong> gratis (obtendrás un link como <code class="text-emerald-400">tu-usuario.github.io/remitos</code>) y conectar tus escaneos directamente a tu <strong>Google Sheets</strong>.</p>
                 </div>
@@ -286,13 +286,11 @@
             
             <div class="p-5 space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto max-h-[75vh]">
                 <p>
-                    Puedes hacer que cada remito escaneado se envíe automáticamente a tu propia planilla de **Google Sheets**.
+                    Esta aplicación ya está conectada directamente a tu propia planilla de **Google Sheets**.
                 </p>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">Paso 1: Copiar código en Google Apps Script</label>
-                    <p class="text-slate-500 mb-2">En tu Google Sheets ve a <strong>Extensiones > Apps Script</strong>, pega este código y despliega como Web App (Acceso: Cualquier persona):</p>
-                    
+                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">Código Google Apps Script configurado</label>
                     <textarea readonly class="w-full bg-slate-900 text-emerald-400 font-mono text-[10px] p-2.5 rounded-xl h-28 border border-slate-800 focus:outline-none select-all" id="apps-script-code">
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -303,8 +301,8 @@ function doPost(e) {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">Paso 2: Pegar la URL Web App de Google Apps Script</label>
-                    <input type="text" id="input-sheets-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono text-xs rounded-xl p-2.5 focus:border-emerald-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-800 uppercase mb-1">URL Web App Conectada</label>
+                    <input type="text" id="input-sheets-url" class="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono text-xs rounded-xl p-2.5 focus:border-emerald-500 outline-none">
                 </div>
             </div>
 
@@ -391,14 +389,11 @@ function doPost(e) {
         let records = JSON.parse(localStorage.getItem('remito_records')) || [];
         let currentImageData = null;
         let idCounter = parseInt(localStorage.getItem('remito_id_counter')) || 1;
-        let googleSheetsUrl = localStorage.getItem('remito_sheets_url') || DEFAULT_SHEETS_URL;
+        let googleSheetsUrl = DEFAULT_SHEETS_URL;
 
         // Initialize App
         window.onload = function() {
-            // Ensure default URL is saved locally if not present
-            if (!localStorage.getItem('remito_sheets_url')) {
-                localStorage.setItem('remito_sheets_url', DEFAULT_SHEETS_URL);
-            }
+            localStorage.setItem('remito_sheets_url', DEFAULT_SHEETS_URL);
             updateTimestamp();
             generateNextId();
             renderRecords();
@@ -411,18 +406,13 @@ function doPost(e) {
 
         function checkSheetsStatus() {
             const badge = document.getElementById('sheets-status-badge');
-            if (googleSheetsUrl) {
-                badge.innerText = 'Sheets Conectado ✓';
-                badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30';
-                document.getElementById('input-sheets-url').value = googleSheetsUrl;
-            } else {
-                badge.innerText = 'Sheets no conectado';
-                badge.className = 'bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30';
-            }
+            badge.innerText = 'Sheets Conectado ✓';
+            badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30';
+            document.getElementById('input-sheets-url').value = googleSheetsUrl;
         }
 
         function saveSheetsUrl() {
-            const url = document.getElementById('input-sheets-url').value.trim();
+            const url = document.getElementById('input-sheets-url').value.trim() || DEFAULT_SHEETS_URL;
             googleSheetsUrl = url;
             localStorage.setItem('remito_sheets_url', url);
             checkSheetsStatus();
