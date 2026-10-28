@@ -387,13 +387,18 @@ function doPost(e) {
     <!-- Application Script -->
     <script>
         // State Management
+        const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwArDhO5bQkI7Rnek6PMaF3Muu4vGKPoR4qtKW1YezziPjoed5Ulct8dzsascuVHfOj/exec';
         let records = JSON.parse(localStorage.getItem('remito_records')) || [];
         let currentImageData = null;
         let idCounter = parseInt(localStorage.getItem('remito_id_counter')) || 1;
-        let googleSheetsUrl = localStorage.getItem('remito_sheets_url') || '';
+        let googleSheetsUrl = localStorage.getItem('remito_sheets_url') || DEFAULT_SHEETS_URL;
 
         // Initialize App
         window.onload = function() {
+            // Ensure default URL is saved locally if not present
+            if (!localStorage.getItem('remito_sheets_url')) {
+                localStorage.setItem('remito_sheets_url', DEFAULT_SHEETS_URL);
+            }
             updateTimestamp();
             generateNextId();
             renderRecords();
