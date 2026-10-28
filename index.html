@@ -85,6 +85,46 @@
             </div>
         </div>
 
+        <!-- Tarjetas de Estadísticas Rápidas -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase">Total Remitos</p>
+                    <p id="stat-total" class="text-xl font-black text-slate-800">0</p>
+                </div>
+                <div class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
+                    <i class="ph ph-files text-xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold text-emerald-600 uppercase">Ingresos</p>
+                    <p id="stat-ingresos" class="text-xl font-black text-emerald-600">0</p>
+                </div>
+                <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                    <i class="ph ph-arrow-circle-down text-xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold text-rose-600 uppercase">Egresos</p>
+                    <p id="stat-egresos" class="text-xl font-black text-rose-600">0</p>
+                </div>
+                <div class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
+                    <i class="ph ph-arrow-circle-up text-xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold text-sky-600 uppercase">Hoy</p>
+                    <p id="stat-today" class="text-xl font-black text-sky-600">0</p>
+                </div>
+                <div class="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600">
+                    <i class="ph ph-calendar-check text-xl"></i>
+                </div>
+            </div>
+        </div>
+
         <!-- Section: Capture & Form Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -97,7 +137,7 @@
                     </h2>
 
                     <!-- Camera / Upload Viewport -->
-                    <div id="drop-area" class="relative border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-emerald-500 transition bg-slate-50 min-h-[220px] flex flex-col items-center justify-center group cursor-pointer overflow-hidden">
+                    <div id="drop-area" onclick="triggerCamera()" class="relative border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-emerald-500 transition bg-slate-50 min-h-[220px] flex flex-col items-center justify-center group cursor-pointer overflow-hidden">
                         
                         <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
                         
@@ -198,12 +238,12 @@
                 <div class="mt-6 pt-4 border-t border-slate-100">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Seleccionar Tipo de Movimiento para Guardar</p>
                     <div class="grid grid-cols-2 gap-3">
-                        <button id="btn-ingreso" onclick="saveRecord('Ingreso')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button id="btn-ingreso" onclick="saveRecord('Ingreso')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
                             <i class="ph ph-arrow-circle-down text-xl"></i>
                             INGRESO
                         </button>
                         
-                        <button id="btn-egreso" onclick="saveRecord('Egreso')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button id="btn-egreso" onclick="saveRecord('Egreso')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-600/20 transition flex items-center justify-center gap-2">
                             <i class="ph ph-arrow-circle-up text-xl"></i>
                             EGRESO
                         </button>
@@ -286,7 +326,7 @@
             
             <div class="p-5 space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto max-h-[75vh]">
                 <p>
-                    Esta aplicación ya está conectada directamente a tu propia planilla de **Google Sheets**.
+                    Esta aplicación ya está configurada con tu script de Google Sheets.
                 </p>
 
                 <div>
@@ -313,7 +353,7 @@ function doPost(e) {
         </div>
     </div>
 
-    <!-- Modal Guía GitHub Pages (para link como el de la imagen) -->
+    <!-- Modal Guía GitHub Pages -->
     <div id="github-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="relative bg-white rounded-2xl max-w-lg w-full overflow-hidden flex flex-col shadow-2xl">
             <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-900 text-white">
@@ -327,7 +367,7 @@ function doPost(e) {
             
             <div class="p-5 space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto max-h-[75vh]">
                 <p>
-                    Para tener un link profesional como el de la imagen (ej: <span class="font-mono text-emerald-700 bg-emerald-50 px-1 font-bold">https://tu-usuario.github.io/remito-scan</span>) para enviar por WhatsApp:
+                    Para tener un link profesional como <span class="font-mono text-emerald-700 bg-emerald-50 px-1 font-bold">https://tu-usuario.github.io/remito-app</span> para enviar por WhatsApp:
                 </p>
 
                 <div class="space-y-3">
@@ -343,7 +383,7 @@ function doPost(e) {
                         <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
                         <div>
                             <p class="font-bold text-slate-800">Crea un Repositorio</p>
-                            <p class="text-slate-500 mt-0.5">Haz clic en <strong>New Repository</strong>, nómbralo <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">remitos</code> y asegúrate de marcarlo como <strong>Public</strong>.</p>
+                            <p class="text-slate-500 mt-0.5">Haz clic en <strong>New Repository</strong>, nómbralo <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">remito-app</code> y marca <strong>Public</strong>.</p>
                         </div>
                     </div>
 
@@ -359,7 +399,7 @@ function doPost(e) {
                         <span class="bg-emerald-600 text-white font-bold rounded-lg w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">4</span>
                         <div>
                             <p class="font-bold text-slate-800">Activa GitHub Pages</p>
-                            <p class="text-slate-500 mt-0.5">Ve a <strong>Settings > Pages</strong>, en Source selecciona la rama <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">main</code> y guarda. ¡Listo! Te dará tu link para compartir por WhatsApp.</p>
+                            <p class="text-slate-500 mt-0.5">Ve a <strong>Settings > Pages</strong>, en Source selecciona la rama <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-900">main</code> y guarda.</p>
                         </div>
                     </div>
                 </div>
@@ -385,15 +425,16 @@ function doPost(e) {
     <!-- Application Script -->
     <script>
         // State Management
-        const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwArDhO5bQkI7Rnek6PMaF3Muu4vGKPoR4qtKW1YezziPjoed5Ulct8dzsascuVHfOj/exec';
+        const FIXED_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwArDhO5bQkI7Rnek6PMaF3Muu4vGKPoR4qtKW1YezziPjoed5Ulct8dzsascuVHfOj/exec';
+        
         let records = JSON.parse(localStorage.getItem('remito_records')) || [];
         let currentImageData = null;
         let idCounter = parseInt(localStorage.getItem('remito_id_counter')) || 1;
-        let googleSheetsUrl = DEFAULT_SHEETS_URL;
+        let googleSheetsUrl = FIXED_SHEETS_URL;
 
         // Initialize App
         window.onload = function() {
-            localStorage.setItem('remito_sheets_url', DEFAULT_SHEETS_URL);
+            localStorage.setItem('remito_sheets_url', FIXED_SHEETS_URL);
             updateTimestamp();
             generateNextId();
             renderRecords();
@@ -406,13 +447,18 @@ function doPost(e) {
 
         function checkSheetsStatus() {
             const badge = document.getElementById('sheets-status-badge');
-            badge.innerText = 'Sheets Conectado ✓';
-            badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30';
-            document.getElementById('input-sheets-url').value = googleSheetsUrl;
+            if (badge) {
+                badge.innerText = 'Sheets Conectado ✓';
+                badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30';
+            }
+            const inputUrl = document.getElementById('input-sheets-url');
+            if (inputUrl) {
+                inputUrl.value = googleSheetsUrl;
+            }
         }
 
         function saveSheetsUrl() {
-            const url = document.getElementById('input-sheets-url').value.trim() || DEFAULT_SHEETS_URL;
+            const url = document.getElementById('input-sheets-url').value.trim() || FIXED_SHEETS_URL;
             googleSheetsUrl = url;
             localStorage.setItem('remito_sheets_url', url);
             checkSheetsStatus();
@@ -422,7 +468,8 @@ function doPost(e) {
         // Generar ID Unico Incremental
         function generateNextId() {
             const formattedId = 'REC-' + String(idCounter).padStart(4, '0');
-            document.getElementById('input-id').value = formattedId;
+            const inputId = document.getElementById('input-id');
+            if (inputId) inputId.value = formattedId;
         }
 
         // Actualizar Fecha y Hora Actuales
@@ -431,8 +478,10 @@ function doPost(e) {
             const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-            document.getElementById('input-fecha').value = dateStr;
-            document.getElementById('input-hora').value = timeStr;
+            const inputFecha = document.getElementById('input-fecha');
+            const inputHora = document.getElementById('input-hora');
+            if (inputFecha) inputFecha.value = dateStr;
+            if (inputHora) inputHora.value = timeStr;
         }
 
         // Trigger Camera / File Upload
@@ -486,7 +535,7 @@ function doPost(e) {
             });
         }
 
-        // Extraer Patrón de Número de Remito de Texto Reconoicdo
+        // Extraer Patrón de Número de Remito de Texto Reconocido
         function extractRemitoNumber(text) {
             const remitoRegex = /\b\d{4}[-\s]?\d{8}\b|\b\d{8,12}\b/;
             const match = text.match(remitoRegex);
@@ -524,7 +573,7 @@ function doPost(e) {
                 image: currentImageData || null
             };
 
-            // Send to Google Sheets if Configured
+            // Send to Google Sheets
             if (googleSheetsUrl) {
                 fetch(googleSheetsUrl, {
                     method: 'POST',
@@ -681,20 +730,25 @@ function doPost(e) {
             const todayStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const todayCount = records.filter(r => r.fecha === todayStr).length;
 
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-ingresos').innerText = ingresos;
-            document.getElementById('stat-egresos').innerText = egresos;
-            document.getElementById('stat-today').innerText = todayCount;
+            const elTotal = document.getElementById('stat-total');
+            const elIngresos = document.getElementById('stat-ingresos');
+            const elEgresos = document.getElementById('stat-egresos');
+            const elToday = document.getElementById('stat-today');
+
+            if (elTotal) elTotal.innerText = total;
+            if (elIngresos) elIngresos.innerText = ingresos;
+            if (elEgresos) elEgresos.innerText = egresos;
+            if (elToday) elToday.innerText = todayCount;
         }
 
-        // Export Data to CSV (Excel compatible)
+        // Export Data to CSV
         function exportToCSV() {
             if (records.length === 0) {
                 alert('No hay registros para exportar.');
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // UTF-8 BOM for Excel
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
             csvContent += "ID Interno;Numero Remito;Tipo Movimiento;Fecha;Hora;Observaciones\n";
 
             records.forEach(r => {
