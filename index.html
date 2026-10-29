@@ -514,50 +514,76 @@ function doPost(e) {
         function processOCR(imageData) {
             const loadingOverlay = document.getElementById('ocr-loading');
             const statusText = document.getElementById('ocr-status-text');
-            loadingOverlay.classList.remove('hidden');
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
             Tesseract.recognize(
                 imageData,
                 'spa', // Spanish language model
                 {
                     logger: m => {
-                        if (m.status === 'recognizing text') {
+                        if (m.status === 'recognizing text' && statusText) {
                             statusText.innerText = `Leyendo remito... ${Math.round(m.progress * 100)}%`;
                         }
                     }
                 }
             ).then(({ data: { text } }) => {
-                loadingOverlay.classList.add('hidden');
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
                 extractRemitoNumber(text);
             }).catch(err => {
                 console.error("OCR Error:", err);
-                loadingOverlay.classList.add('hidden');
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
             });
         }
 
-        // Extraer Patrón de Número de Remito de Texto Reconocido (Mejorado)
+        // Extraer Patrón de Número de Remito de Texto Reconocido (Súper Optimizado)
         function extractRemitoNumber(text) {
-            // Eliminar CUITs habituales o números de 11 dígitos que empiecen en 20, 27, 30, 33
-            const cleanText = text.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
-
-            // Buscar patrón estándar de Remito (Ej: 0001-00012345 ó 0001 00012345)
-            const remitoStandardRegex = /\b\d{4,5}[-\s]\d{6,8}\b/;
-            const matchStandard = cleanText.match(remitoStandardRegex);
+            if (!text) return;
+            
+            // Limpiar texto de CUITs (11 dígitos que arranquen en 20, 23, 27, 30, 33, 34)
+            let cleanText = text.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
 
             const inputRemito = document.getElementById('input-remito');
+            if (!inputRemito) return;
+
+            // 1. Patrón clásico de Remito Argentino: 4 o 5 dígitos + guión/espacio + 8 dígitos (ej: 0001-00012345)
+            const remitoStandardRegex = /\b\d{4,5}[-\s/]\d{6,8}\b/;
+            const matchStandard = cleanText.match(remitoStandardRegex);
+
             if (matchStandard) {
-                inputRemito.value = matchStandard[0].replace(/\s+/g, '-');
-                inputRemito.classList.add('border-emerald-500', 'bg-emerald-50');
-                setTimeout(() => inputRemito.classList.remove('bg-emerald-50'), 1500);
+                inputRemito.value = matchStandard[0].replace(/[\s/]+/g, '-');
+                highlightInput(inputRemito);
                 return;
             }
 
-            // Si no encuentra con guión/espacio, busca bloque numérico de 8 a 12 dígitos
-            const blockRegex = /\b\d{8,12}\b/;
-            const matchBlock = cleanText.match(blockRegex);
-            if (matchBlock) {
-                inputRemito.value = matchBlock[0];
+            // 2. Patrón de 2 bloques numéricos separados (ej: 0004 12345678)
+            const doubleBlockRegex = /\b\d{4,5}\b\s+\b\d{6,8}\b/;
+            const matchDouble = cleanText.match(doubleBlockRegex);
+            if (matchDouble) {
+                inputRemito.value = matchDouble[0].replace(/\s+/g, '-');
+                highlightInput(inputRemito);
+                return;
             }
+
+            // 3. Buscar la secuencia más larga de números seguidos (entre 6 y 13 dígitos)
+            const matches = cleanText.match(/\b\d{6,13}\b/g);
+            if (matches && matches.length > 0) {
+                // Tomar la coincidencia más larga encontrada
+                const longestMatch = matches.reduce((a, b) => a.length >= b.length ? a : b);
+                inputRemito.value = longestMatch;
+                highlightInput(inputRemito);
+                return;
+            }
+
+            // Si no detectó patrón claro, notificar amigablemente en consola
+            console.log("No se detectó un patrón automático claro de remito.");
+        }
+
+        // Efecto visual al autocompletar el campo
+        function highlightInput(element) {
+            element.classList.add('border-emerald-500', 'bg-emerald-50', 'ring-2', 'ring-emerald-200');
+            setTimeout(() => {
+                element.classList.remove('bg-emerald-50', 'ring-2', 'ring-emerald-200');
+            }, 2000);
         }
 
         // Helper para comprimir imagen antes de enviar a Sheets
