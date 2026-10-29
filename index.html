@@ -578,6 +578,7 @@ function doPost(e) {
                 }
             ).then(({ data: { text } }) => {
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                console.log("Texto detectado por OCR:", text);
                 extractRemitoNumber(text);
             }).catch(err => {
                 console.error("OCR Error:", err);
@@ -589,24 +590,35 @@ function doPost(e) {
         function extractRemitoNumber(text) {
             if (!text) return;
             
-            // Limpiar texto de CUITs (11 dígitos que arranquen en 20, 23, 27, 30, 33, 34)
-            let cleanText = text.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
+            // Limpiar saltos de línea y caracteres extraños
+            let cleanText = text.replace(/\n/g, ' ').replace(/\t/g, ' ');
+
+            // Filtrar CUITs (11 dígitos que arranquen en 20, 23, 27, 30, 33, 34)
+            cleanText = cleanText.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
 
             const inputRemito = document.getElementById('input-remito');
             if (!inputRemito) return;
 
-            // 1. Patrón clásico de Remito Argentino: 4 o 5 dígitos + guión/espacio + 8 dígitos (ej: 0001-00012345)
-            const remitoStandardRegex = /\b\d{4,5}[-\s/]\d{6,8}\b/;
-            const matchStandard = cleanText.match(remitoStandardRegex);
+            // 1. Patrón con prefijos típicos de remito ("REMITO N°", "REM:", "NRO:", "N°")
+            const prefixRegex = /(?:REMITO|NRO|NUMERO|N°|REM|R\/N)[^\d]*(\d{3,5}[-\s/]?\d{5,8})/i;
+            const matchPrefix = cleanText.match(prefixRegex);
+            if (matchPrefix && matchPrefix[1]) {
+                inputRemito.value = matchPrefix[1].replace(/[\s/]+/g, '-');
+                highlightInput(inputRemito);
+                return;
+            }
 
+            // 2. Patrón clásico de Remito Argentino: 3 a 5 dígitos + guión/espacio/barra + 5 a 8 dígitos (ej: 0001-00012345)
+            const remitoStandardRegex = /\b\d{3,5}[-\s/]\d{5,8}\b/;
+            const matchStandard = cleanText.match(remitoStandardRegex);
             if (matchStandard) {
                 inputRemito.value = matchStandard[0].replace(/[\s/]+/g, '-');
                 highlightInput(inputRemito);
                 return;
             }
 
-            // 2. Patrón de 2 bloques numéricos separados (ej: 0004 12345678)
-            const doubleBlockRegex = /\b\d{4,5}\b\s+\b\d{6,8}\b/;
+            // 3. Patrón de 2 bloques numéricos separados (ej: 0004 12345678)
+            const doubleBlockRegex = /\b\d{3,5}\b\s+\b\d{5,8}\b/;
             const matchDouble = cleanText.match(doubleBlockRegex);
             if (matchDouble) {
                 inputRemito.value = matchDouble[0].replace(/\s+/g, '-');
@@ -614,18 +626,16 @@ function doPost(e) {
                 return;
             }
 
-            // 3. Buscar la secuencia más larga de números seguidos (entre 6 y 13 dígitos)
+            // 4. Buscar la secuencia más larga de números seguidos (entre 6 y 13 dígitos)
             const matches = cleanText.match(/\b\d{6,13}\b/g);
             if (matches && matches.length > 0) {
-                // Tomar la coincidencia más larga encontrada
                 const longestMatch = matches.reduce((a, b) => a.length >= b.length ? a : b);
                 inputRemito.value = longestMatch;
                 highlightInput(inputRemito);
                 return;
             }
 
-            // Si no detectó patrón claro, notificar amigablemente en consola
-            console.log("No se detectó un patrón automático claro de remito.");
+            console.log("No se detectó un patrón automático claro de remito en:", cleanText);
         }
 
         // Efecto visual al autocompletar el campo
