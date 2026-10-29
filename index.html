@@ -46,14 +46,7 @@
             </div>
             
             <div class="flex items-center space-x-2">
-                <button onclick="openSheetsConfigModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1.5 shadow-sm">
-                    <i class="ph ph-file-spreadsheet text-lg"></i>
-                    <span class="hidden sm:inline">Conectar Google Sheets</span>
-                </button>
-                <button onclick="openGitHubGuideModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700 transition flex items-center gap-1.5 shadow-sm">
-                    <i class="ph ph-github-logo text-lg text-emerald-400"></i>
-                    <span class="hidden sm:inline">Publicar Link Gratis</span>
-                </button>
+                <!-- Se eliminan los botones de instructivo del header -->
             </div>
         </div>
     </header>
@@ -61,29 +54,7 @@
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- Banner Explicativo GitHub Pages & Sheets -->
-        <div class="bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-            <div class="flex items-center gap-3">
-                <div class="bg-emerald-500/20 text-emerald-400 p-2.5 rounded-xl flex-shrink-0">
-                    <i class="ph ph-cloud-arrow-up text-2xl"></i>
-                </div>
-                <div>
-                    <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                        <span>¿Cómo tener tu link .github.io y conectar Google Sheets?</span>
-                        <span id="sheets-status-badge" class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30">Sheets Conectado ✓</span>
-                    </h2>
-                    <p class="text-xs text-slate-300 mt-0.5">Puedes subir este archivo a <strong>GitHub Pages</strong> gratis (obtendrás un link como <code class="text-emerald-400">tu-usuario.github.io/remitos</code>) y conectar tus escaneos directamente a tu <strong>Google Sheets</strong>.</p>
-                </div>
-            </div>
-            <div class="flex gap-2 w-full md:w-auto">
-                <button onclick="openSheetsConfigModal()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md">
-                    <i class="ph ph-gear text-base"></i> Configurar Sheets
-                </button>
-                <button onclick="openGitHubGuideModal()" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 border border-slate-700">
-                    <i class="ph ph-rocket-launch text-base text-emerald-400"></i> Pasos GitHub Pages
-                </button>
-            </div>
-        </div>
+        <!-- Se elimina el Banner Explicativo de GitHub Pages & Sheets -->
 
         <!-- Tarjetas de Estadísticas Rápidas -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -432,8 +403,17 @@ function doPost(e) {
         let idCounter = parseInt(localStorage.getItem('remito_id_counter')) || 1;
         let googleSheetsUrl = FIXED_SHEETS_URL;
 
+        // Force hide all modals on initialization
+        function forceCloseAllModals() {
+            ['sheets-modal', 'github-modal', 'image-modal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+        }
+
         // Initialize App
         window.onload = function() {
+            forceCloseAllModals();
             localStorage.setItem('remito_sheets_url', FIXED_SHEETS_URL);
             updateTimestamp();
             generateNextId();
