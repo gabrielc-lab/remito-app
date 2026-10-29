@@ -427,7 +427,18 @@ function doPost(e) {
         // State Management
         const FIXED_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwvlUDMd0rjDmogf2pn-Ji67WVKLh_xQN16FwuiTrq8d8oebbTs76t-kuOfUg3SboG5/exec';
         
+        let googleSheetsUrl = FIXED_SHEETS_URL;
         let records = JSON.parse(localStorage.getItem('remito_records')) || [];
+        let idCounter = parseInt(localStorage.getItem('remito_id_counter'), 10) || 1;
+        let currentImageData = null;
+
+        function forceCloseAllModals() {
+            ['sheets-modal', 'github-modal', 'image-modal', 'ocr-loading'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+        }
+
         // Helper para optimizar y ajustar tamaño de imagen
         function compressImageForSheets(base64Str, maxWidth = 800, quality = 0.6) {
             return new Promise((resolve) => {
