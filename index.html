@@ -609,235 +609,279 @@ function doPost(e) {
             const loadingOverlay = document.getElementById('ocr-loading');
             const statusText = document.getElementById('ocr-status-text');
             if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-            if (statusText) statusText.innerText = 'Mejorando calidad de foto...';
+            if (statusText) statusText.innerText = 'Escaneando foto...';
 
             try {
-                // Enhance photo for text recognition
-                const processedImage = await preprocessImageForOCR(imageData);
-
+                // Run OCR on the original image first for best accuracy on high-res camera photos
                 Tesseract.recognize(
-                    processedImage,
+                    imageData,
                     'spa',
                     {
                         logger: m => {
                             if (m.status === 'recognizing text' && statusText) {
-                                statusText.innerText = `Buscando número... ${Math.round(m.progress * 100)}%`;
+                                statusText.innerText = `Leyendo número... ${Math.round(m.progress * 100)}%`;
                             }
                         }
                     }
                 ).then(({ data: { text } }) => {
-                    if (loadingOverlay) loadingOverlay.classList.add('hidden');
-                    console.log("Texto OCR:", text);
-                    extractRemitoNumber(text);
-                }).catch(err => {
+                    console.log("Texto OCR (Original):", text);
+                    const found = extractRemitoNumber(text);
+                    
+                    // If not found on original, try high-contrast image as fallback
+                    if (!found) {
+                        preprocessImageForOCR(imageData).then(processedImg => {
+                            Tesseract.recognize(processedImg, 'spa').then(({ data: { text: text2 } }) => {
+                                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                                console.log("Texto OCR (Preprocesado):", text2);
+                                extractRemitoNumber(text2);
+                            }).catch(() => {
+                                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                            });
+                        });
+                    } else {
+                        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                    }
+                }).catch(async err => {
                     console.error("OCR Error:", err);
                     if (loadingOverlay) loadingOverlay.classList.add('hidden');
                 });
             } catch (e) {
-                console.error("Preprocess Error:", e);
+                console.error("OCR Exception:", e);
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
             }
         }
 
         // Extraer Patrón de Número de Remito de Texto Reconocido (Súper Robustecido)
         function extractRemitoNumber(text) {
-            if (!text) return;
+            if (!text) return false;
             
             const inputRemito = document.getElementById('input-remito');
-            if (!inputRemito) return;
+            if (!inputRemito) return false;
 
-            // Normalización
+            // Limpieza básica de saltos de línea y símbolos ruidosos
             let cleanText = text.toUpperCase().replace(/[\r\n]+/g, ' ');
 
-            // Remover CUITs
+            // Filtrar CUITs comunes (11 dígitos) para evitar falsos positivos
             cleanText = cleanText.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
 
-            // 1. Coincidencia con palabras clave ("REMITO", "NRO", "N°", "REM")
-            const keywordRegex = /(?:REMITO|NRO|NUMERO|N°|REM|R\/N|COMPROBANTE)[^\d]*(\d{3,5}[-\s/]?\d{4,8})/i;
+            // 1. Coincidencia con palabras clave ("REMITO", "NRO", "N°", "REM", "R/N")
+            const keywordRegex = /(?:REMITO|NRO|NUMERO|N°|REM|R\/N|COMPROBANTE|N|NO)[^\d]*([O0-9]{3,5}[-\s/.]?[O0-9]{4,9})/i;
             const matchKey = cleanText.match(keywordRegex);
             if (matchKey && matchKey[1]) {
-                inputRemito.value = matchKey[1].replace(/[\s/]+/g, '-');
+                let val = matchKey[1].replace(/O/g, '0').replace(/[\s/.]+/g, '-');
+                inputRemito.value = val;
                 highlightInput(inputRemito);
-                return;
+                return true;
             }
 
-            // 2. Formato Estándar Argentina (ej: 0001-00012345, 0004 00001234)
-            const standardRegex = /\b\d{3,5}[-\s/]\d{4,8}\b/;
+            // 2. Formato Estándar Argentina (ej: 0040-005105573, 0001-00012345, 0004 00001234)
+            const standardRegex = /\b[O0-9]{3,5}[-\s/.][O0-9]{4,9}\b/;
             const matchStandard = cleanText.match(standardRegex);
             if (matchStandard) {
-                inputRemito.value = matchStandard[0].replace(/[\s/]+/g, '-');
+                let cleanVal = matchStandard[0].replace(/O/g, '0').replace(/[\s/.]+/g, '-');
+                inputRemito.value = cleanVal;
                 highlightInput(inputRemito);
-                return;
+                return true;
             }
 
-            // 3. Dos bloques de números seguidos
-            const twoBlocks = cleanText.match(/\b\d{3,5}\b\s+\b\d{4,8}\b/);
+            // 3. Dos bloques de números seguidos (ej: 0040 005105573)
+            const twoBlocks = cleanText.match(/\b[O0-9]{3,5}\b\s+\b[O0-9]{4,9}\b/);
             if (twoBlocks) {
-                inputRemito.value = twoBlocks[0].replace(/\s+/g, '-');
+                let cleanVal = twoBlocks[0].replace(/O/g, '0').replace(/\s+/g, '-');
+                inputRemito.value = cleanVal;
                 highlightInput(inputRemito);
-                return;
+                return true;
             }
 
-            // 4. Cadena larga de 8 a 13 dígitos
-            const anyLongDigits = cleanText.match(/\b\d{8,13}\b/g);
+            // 4. Cadena de dígitos seguidos (ej: 0040005105573 o números de 8 a 13 dígitos)
+            const anyLongDigits = cleanText.match(/\b[O0-9]{8,13}\b/g);
             if (anyLongDigits && anyLongDigits.length > 0) {
-                inputRemito.value = anyLongDigits[0];
+                let cleanVal = anyLongDigits[0].replace(/O/g, '0');
+                inputRemito.value = cleanVal;
                 highlightInput(inputRemito);
-                return;
+                return true;
             }
 
-            // 5. Fallback: extraer los primeros 8 dígitos juntos que aparezcan
-            const fallbackDigits = cleanText.replace(/\D/g, '');
+            // 5. Fallback: extraer todos los números continuos si hay al menos 6 dígitos
+            const fallbackDigits = cleanText.replace(/O/g, '0').replace(/\D/g, '');
             if (fallbackDigits.length >= 6) {
-                inputRemito.value = fallbackDigits.substring(0, 12);
+                inputRemito.value = fallbackDigits.substring(0, 13);
                 highlightInput(inputRemito);
+                return true;
             }
+
+            return false;
         }
 
         // Destacar casilla en verde cuando se detecta el número
         function highlightInput(inputElement) {
-            inputElement.classList.add('bg-emerald-50', 'border-emerald-500', 'ring-2', 'ring-emerald-300');
+            if (!inputElement) return;
+            inputElement.classList.add('ring-4', 'ring-emerald-400', 'border-emerald-500', 'bg-emerald-50');
             setTimeout(() => {
-                inputElement.classList.remove('bg-emerald-50', 'ring-2', 'ring-emerald-300');
-            }, 2000);
+                inputElement.classList.remove('ring-4', 'ring-emerald-400', 'border-emerald-500', 'bg-emerald-50');
+            }, 2500);
         }
 
-        // Resetear Captura
+        // Resets the capture preview
         function resetCapture() {
             currentImageData = null;
-            document.getElementById('file-input').value = '';
-            document.getElementById('image-preview').src = '';
-            document.getElementById('image-preview').classList.add('hidden');
-            document.getElementById('btn-retake').classList.add('hidden');
+            const imgPreview = document.getElementById('image-preview');
+            const btnRetake = document.getElementById('btn-retake');
+            const fileInput = document.getElementById('file-input');
+            
+            if (imgPreview) imgPreview.classList.add('hidden');
+            if (btnRetake) btnRetake.classList.add('hidden');
+            if (fileInput) fileInput.value = '';
         }
 
-        // Guardar Registro (Ingreso o Egreso)
+        // Save Record Function (Ingreso / Egreso)
         async function saveRecord(tipo) {
             const inputRemito = document.getElementById('input-remito');
-            const remitoVal = inputRemito ? inputRemito.value.trim() : '';
+            const remitoNum = inputRemito ? inputRemito.value.trim() : '';
 
-            if (!remitoVal) {
-                alert('Por favor ingresa o escanea un Número de Remito.');
+            if (!remitoNum) {
+                alert("Por favor ingresa o escanea un Número de Remito.");
                 if (inputRemito) inputRemito.focus();
                 return;
             }
 
-            const idVal = document.getElementById('input-id').value;
-            const fechaVal = document.getElementById('input-fecha').value;
-            const horaVal = document.getElementById('input-hora').value;
-            const obsVal = document.getElementById('input-obs').value.trim() || '-';
-            const provVal = document.getElementById('input-proveedor').value.trim() || '-';
-            const telVal = document.getElementById('input-telefono').value.trim() || '-';
-
-            // Comprimir la foto si existe
-            let compressedImage = null;
-            if (currentImageData) {
-                compressedImage = await compressImageForSheets(currentImageData, 800, 0.6);
-            }
+            const inputId = document.getElementById('input-id');
+            const inputFecha = document.getElementById('input-fecha');
+            const inputHora = document.getElementById('input-hora');
+            const inputObs = document.getElementById('input-obs');
+            const inputProveedor = document.getElementById('input-proveedor');
+            const inputTelefono = document.getElementById('input-telefono');
 
             const newRecord = {
-                id: idVal,
-                remito: remitoVal,
+                id: inputId ? inputId.value : ('REC-' + String(idCounter).padStart(4, '0')),
+                remito: remitoNum,
                 tipo: tipo,
-                fecha: fechaVal,
-                hora: horaVal,
-                proveedor: provVal,
-                telefono: telVal,
-                observaciones: obsVal,
-                image: compressedImage
+                fecha: inputFecha ? inputFecha.value : new Date().toLocaleDateString('es-AR'),
+                hora: inputHora ? inputHora.value : new Date().toLocaleTimeString('es-AR'),
+                proveedor: inputProveedor ? inputProveedor.value.trim() : '-',
+                telefono: inputTelefono ? inputTelefono.value.trim() : '-',
+                observaciones: inputObs ? inputObs.value.trim() : '-',
+                image: currentImageData || null
             };
 
-            // Enviar a Google Sheets vía webhook POST
-            if (googleSheetsUrl) {
-                fetch(googleSheetsUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newRecord)
-                }).catch(err => console.error("Error al enviar a Google Sheets:", err));
-            }
-
-            // Guardar localmente
-            records.unshift(newRecord);
-            localStorage.setItem('remito_records', JSON.stringify(records));
-
-            // Incrementar contador ID
+            // Increment local ID counter
             idCounter++;
             localStorage.setItem('remito_id_counter', idCounter.toString());
 
-            // Limpiar Formulario y Resetear
-            resetCapture();
-            if (inputRemito) inputRemito.value = '';
-            document.getElementById('input-obs').value = '';
-            document.getElementById('input-proveedor').value = '';
-            document.getElementById('input-telefono').value = '';
+            // Save to LocalStorage
+            records.unshift(newRecord);
+            localStorage.setItem('remito_records', JSON.stringify(records));
 
-            generateNextId();
+            // Refresh local UI
             renderRecords();
             updateStats();
+            generateNextId();
+
+            // Clear inputs
+            if (inputRemito) inputRemito.value = '';
+            if (inputObs) inputObs.value = '';
+            if (inputProveedor) inputProveedor.value = '';
+            if (inputTelefono) inputTelefono.value = '';
+            resetCapture();
+
+            // Send to Google Sheets if connected
+            if (googleSheetsUrl) {
+                sendToGoogleSheets(newRecord);
+            }
         }
 
-        // Renderizar Lista de Remitos en la Tabla
+        // Send payload to Google Apps Script
+        async function sendToGoogleSheets(recordData) {
+            try {
+                let compressedImage = null;
+                if (recordData.image) {
+                    compressedImage = await compressImageForSheets(recordData.image, 800, 0.6);
+                }
+
+                const payload = {
+                    id: recordData.id,
+                    remito: recordData.remito,
+                    tipo: recordData.tipo,
+                    fecha: recordData.fecha,
+                    hora: recordData.hora,
+                    proveedor: recordData.proveedor,
+                    telefono: recordData.telefono,
+                    observaciones: recordData.observaciones,
+                    image: compressedImage || ''
+                };
+
+                await fetch(googleSheetsUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Error al enviar a Google Sheets:", err);
+            }
+        }
+
+        // Render records table
         function renderRecords(recordsToRender = records) {
             const tbody = document.getElementById('records-tbody');
             const emptyState = document.getElementById('empty-state');
-            const recordCount = document.getElementById('record-count');
+            const countBadge = document.getElementById('record-count');
+
+            if (countBadge) countBadge.innerText = recordsToRender.length;
 
             if (!tbody) return;
 
-            if (recordCount) recordCount.innerText = recordsToRender.length;
+            tbody.innerHTML = '';
 
             if (recordsToRender.length === 0) {
-                tbody.innerHTML = '';
                 if (emptyState) emptyState.classList.remove('hidden');
                 return;
             }
 
             if (emptyState) emptyState.classList.add('hidden');
 
-            tbody.innerHTML = recordsToRender.map(r => {
-                const isIngreso = r.tipo === 'Ingreso';
-                const badgeClass = isIngreso
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+            recordsToRender.forEach((rec) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition border-b border-slate-100';
+
+                const isIngreso = rec.tipo === 'Ingreso';
+                const badgeClass = isIngreso 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
                     : 'bg-rose-100 text-rose-800 border-rose-200';
 
-                const thumbHtml = r.image
-                    ? `<img src="${r.image}" onclick="openModal('${r.id}')" class="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-105 transition" alt="Foto">`
-                    : `<div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-200">Sin Foto</div>`;
+                const imgHtml = rec.image 
+                    ? `<img src="${rec.image}" onclick="openModal('${rec.image}', '${rec.remito}')" class="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 shadow-sm" />` 
+                    : `<div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="ph ph-image-broken text-lg"></i></div>`;
 
-                return `
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-3">${thumbHtml}</td>
-                        <td class="p-3 font-mono font-bold text-slate-800">${r.id}</td>
-                        <td class="p-3 font-mono font-semibold text-slate-900">${r.remito}</td>
-                        <td class="p-3">
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeClass}">
-                                <i class="ph ${isIngreso ? 'ph-arrow-circle-down' : 'ph-arrow-circle-up'} text-sm"></i>
-                                ${r.tipo}
-                            </span>
-                        </td>
-                        <td class="p-3 text-slate-500 text-[11px]">
-                            <div>${r.fecha}</div>
-                            <div class="text-slate-400 font-mono">${r.hora}</div>
-                        </td>
-                        <td class="p-3 text-slate-700 text-xs">
-                            <div class="font-semibold">${r.proveedor || '-'}</div>
-                            <div class="text-slate-400 text-[11px] font-mono">${r.telefono || '-'}</div>
-                        </td>
-                        <td class="p-3 text-slate-600 text-xs max-w-xs truncate">${r.observaciones}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deleteRecord('${r.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
-                                <i class="ph ph-trash text-lg"></i>
-                            </button>
-                        </td>
-                    </tr>
+                tr.innerHTML = `
+                    <td class="p-3">${imgHtml}</td>
+                    <td class="p-3 font-mono font-bold text-slate-900">${rec.id}</td>
+                    <td class="p-3 font-mono font-bold text-slate-800">${rec.remito}</td>
+                    <td class="p-3">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">
+                            ${rec.tipo}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-500">${rec.fecha} <span class="text-slate-400 text-[10px]">${rec.hora}</span></td>
+                    <td class="p-3">
+                        <div class="font-semibold text-slate-800">${rec.proveedor || '-'}</div>
+                        <div class="text-[10px] text-slate-400">${rec.telefono || '-'}</div>
+                    </td>
+                    <td class="p-3 text-slate-600 max-w-xs truncate">${rec.observaciones || '-'}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="deleteRecord('${rec.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
+                            <i class="ph ph-trash text-base"></i>
+                        </button>
+                    </td>
                 `;
-            }).join('');
+
+                tbody.appendChild(tr);
+            });
         }
 
-        // Eliminar Registro
+        // Delete a record by ID
         function deleteRecord(id) {
-            if (confirm(`¿Estás seguro de eliminar el remito ${id}?`)) {
+            if (confirm(`¿Estás seguro de eliminar el registro ${id}?`)) {
                 records = records.filter(r => r.id !== id);
                 localStorage.setItem('remito_records', JSON.stringify(records));
                 renderRecords();
@@ -845,55 +889,93 @@ function doPost(e) {
             }
         }
 
-        // Filtrar y Buscar Registros
+        // Update Stats Counters
+        function updateStats() {
+            const totalEl = document.getElementById('stat-total');
+            const ingresosEl = document.getElementById('stat-ingresos');
+            const egresosEl = document.getElementById('stat-egresos');
+            const todayEl = document.getElementById('stat-today');
+
+            const todayStr = new Date().toLocaleDateString('es-AR');
+
+            const total = records.length;
+            const ingresos = records.filter(r => r.tipo === 'Ingreso').length;
+            const egresos = records.filter(r => r.tipo === 'Egreso').length;
+            const todayCount = records.filter(r => r.fecha === todayStr).length;
+
+            if (totalEl) totalEl.innerText = total;
+            if (ingresosEl) ingresosEl.innerText = ingresos;
+            if (egresosEl) egresosEl.innerText = egresos;
+            if (todayEl) todayEl.innerText = todayCount;
+        }
+
+        // Search and Filter Function
         function filterRecords() {
-            const searchVal = (document.getElementById('search-input')?.value || '').toLowerCase();
-            const filterType = document.getElementById('filter-type')?.value || 'ALL';
+            const searchInput = document.getElementById('search-input');
+            const filterType = document.getElementById('filter-type');
+
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedType = filterType ? filterType.value : 'ALL';
 
             const filtered = records.filter(r => {
-                const matchesSearch =
-                    r.id.toLowerCase().includes(searchVal) ||
-                    r.remito.toLowerCase().includes(searchVal) ||
-                    (r.proveedor && r.proveedor.toLowerCase().includes(searchVal)) ||
-                    (r.observaciones && r.observaciones.toLowerCase().includes(searchVal));
+                const matchesType = (selectedType === 'ALL') || (r.tipo === selectedType);
+                const matchesSearch = !query || 
+                    r.id.toLowerCase().includes(query) ||
+                    r.remito.toLowerCase().includes(query) ||
+                    (r.proveedor && r.proveedor.toLowerCase().includes(query)) ||
+                    (r.observaciones && r.observaciones.toLowerCase().includes(query));
 
-                const matchesType = filterType === 'ALL' || r.tipo === filterType;
-
-                return matchesSearch && matchesType;
+                return matchesType && matchesSearch;
             });
 
             renderRecords(filtered);
         }
 
-        // Update Summary Cards Stats
-        function updateStats() {
-            const total = records.length;
-            const ingresos = records.filter(r => r.tipo === 'Ingreso').length;
-            const egresos = records.filter(r => r.tipo === 'Egreso').length;
+        // Image Modal controls
+        function openModal(imgUrl, caption) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            const modalCap = document.getElementById('modal-caption');
 
-            const todayStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const todayCount = records.filter(r => r.fecha === todayStr).length;
-
-            const elTotal = document.getElementById('stat-total');
-            const elIngresos = document.getElementById('stat-ingresos');
-            const elEgresos = document.getElementById('stat-egresos');
-            const elToday = document.getElementById('stat-today');
-
-            if (elTotal) elTotal.innerText = total;
-            if (elIngresos) elIngresos.innerText = ingresos;
-            if (elEgresos) elEgresos.innerText = egresos;
-            if (elToday) elToday.innerText = todayCount;
+            if (modalImg) modalImg.src = imgUrl;
+            if (modalCap) modalCap.innerText = 'Remito N°: ' + caption;
+            if (modal) modal.classList.remove('hidden');
         }
 
-        // Export Data to CSV
+        function closeModal() {
+            const modal = document.getElementById('image-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function openSheetsConfigModal() {
+            const modal = document.getElementById('sheets-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeSheetsConfigModal() {
+            const modal = document.getElementById('sheets-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function openGitHubGuideModal() {
+            const modal = document.getElementById('github-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeGitHubGuideModal() {
+            const modal = document.getElementById('github-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Export data to CSV
         function exportToCSV() {
             if (records.length === 0) {
-                alert('No hay registros para exportar.');
+                alert("No hay registros para exportar.");
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "ID Interno;Numero Remito;Tipo Movimiento;Fecha;Hora;Proveedor;Telefono;Observaciones\n";
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID Interno,Nº Remito,Tipo,Fecha,Hora,Proveedor,Telefono,Observaciones\n";
 
             records.forEach(r => {
                 const row = [
@@ -902,50 +984,20 @@ function doPost(e) {
                     `"${r.tipo}"`,
                     `"${r.fecha}"`,
                     `"${r.hora}"`,
-                    `"${(r.proveedor || '-').replace(/"/g, '""')}"`,
-                    `"${(r.telefono || '-').replace(/"/g, '""')}"`,
-                    `"${r.observaciones.replace(/"/g, '""')}"`
-                ].join(";");
+                    `"${r.proveedor || '-'}"`,
+                    `"${r.telefono || '-'}"`,
+                    `"${r.observaciones || '-'}"`
+                ].join(",");
                 csvContent += row + "\n";
             });
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Planilla_Remitos_${new Date().toISOString().slice(0,10)}.csv`);
+            link.setAttribute("download", `remitos_export_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
-
-        // Modals Logic
-        function openModal(id) {
-            const item = records.find(r => r.id === id);
-            if (!item || !item.image) return;
-
-            document.getElementById('modal-img').src = item.image;
-            document.getElementById('modal-caption').innerText = `${item.id} - Remito: ${item.remito} (${item.tipo})`;
-            document.getElementById('image-modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('image-modal').classList.add('hidden');
-        }
-
-        function openSheetsConfigModal() {
-            document.getElementById('sheets-modal').classList.remove('hidden');
-        }
-
-        function closeSheetsConfigModal() {
-            document.getElementById('sheets-modal').classList.add('hidden');
-        }
-
-        function openGitHubGuideModal() {
-            document.getElementById('github-modal').classList.remove('hidden');
-        }
-
-        function closeGitHubGuideModal() {
-            document.getElementById('github-modal').classList.add('hidden');
         }
     </script>
 </body>
