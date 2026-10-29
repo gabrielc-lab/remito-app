@@ -208,6 +208,28 @@
                         </label>
                         <input type="text" id="input-obs" placeholder="Ej: Proveedor Lácteos S.A. / Bultos ok" class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-slate-900 text-xs rounded-xl px-3.5 py-2 transition outline-none">
                     </div>
+
+                    <!-- Campos Opcionales: Proveedor y Teléfono -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Proveedor <span class="text-slate-400 font-normal">(Opcional)</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="input-proveedor" placeholder="Ej: Distribuidora Perez S.A." class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-slate-900 text-xs rounded-xl px-3.5 py-2 transition outline-none">
+                                <i class="ph ph-storefront absolute right-3 top-2.5 text-slate-400 text-sm"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Teléfono Proveedor <span class="text-slate-400 font-normal">(Opcional)</span>
+                            </label>
+                            <div class="relative">
+                                <input type="tel" id="input-telefono" placeholder="Ej: +54 9 11 1234-5678" class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-slate-900 text-xs rounded-xl px-3.5 py-2 transition outline-none">
+                                <i class="ph ph-phone absolute right-3 top-2.5 text-slate-400 text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Action Buttons: INGRESO / EGRESO -->
@@ -268,6 +290,7 @@
                             <th class="p-3">Nº Remito</th>
                             <th class="p-3">Tipo</th>
                             <th class="p-3">Fecha y Hora</th>
+                            <th class="p-3">Proveedor / Tel.</th>
                             <th class="p-3">Observaciones</th>
                             <th class="p-3 text-right">Acciones</th>
                         </tr>
@@ -311,7 +334,8 @@
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var data = JSON.parse(e.postData.contents);
-  sheet.appendRow([data.id, data.remito, data.tipo, data.fecha, data.hora, data.observaciones]);
+  var fotoCell = data.image ? '=IMAGE("' + data.image + '")' : 'Sin Foto';
+  sheet.appendRow([data.id, data.remito, data.tipo, data.fecha, data.hora, data.proveedor, data.telefono, data.observaciones, fotoCell]);
   return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
 }</textarea>
                 </div>
@@ -633,6 +657,8 @@ function doPost(e) {
                 tipo: tipo, // 'Ingreso' o 'Egreso'
                 fecha: document.getElementById('input-fecha').value,
                 hora: document.getElementById('input-hora').value,
+                proveedor: document.getElementById('input-proveedor').value.trim() || '-',
+                telefono: document.getElementById('input-telefono').value.trim() || '-',
                 observaciones: document.getElementById('input-obs').value.trim() || '-',
                 image: compressedImage || currentImageData || null
             };
@@ -663,6 +689,8 @@ function doPost(e) {
         // Reset Inputs after saving
         function resetForm() {
             document.getElementById('input-remito').value = '';
+            document.getElementById('input-proveedor').value = '';
+            document.getElementById('input-telefono').value = '';
             document.getElementById('input-obs').value = '';
             resetCapture();
             generateNextId();
@@ -707,6 +735,10 @@ function doPost(e) {
                     ? `<img src="${item.image}" onclick="openModal('${item.id}')" class="w-10 h-10 object-cover rounded-lg cursor-pointer border border-slate-200 hover:scale-105 transition" />`
                     : `<div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="ph ph-image-broken text-lg"></i></div>`;
 
+                const provInfo = (item.proveedor && item.proveedor !== '-') 
+                    ? `<div class="font-bold text-slate-800">${item.proveedor}</div>` + ((item.telefono && item.telefono !== '-') ? `<a href="https://wa.me/${item.telefono.replace(/\D/g,'')}" target="_blank" class="text-[10px] text-emerald-600 hover:underline flex items-center gap-0.5"><i class="ph ph-whatsapp-logo"></i> ${item.telefono}</a>` : '')
+                    : `<span class="text-slate-400 italic">-</span>`;
+
                 tr.innerHTML = `
                     <td class="p-3">${imgThumbnail}</td>
                     <td class="p-3 font-mono font-bold text-slate-900">${item.id}</td>
@@ -721,6 +753,7 @@ function doPost(e) {
                         <div class="font-medium text-slate-800">${item.fecha}</div>
                         <div class="text-[10px] text-slate-400">${item.hora} hs</div>
                     </td>
+                    <td class="p-3">${provInfo}</td>
                     <td class="p-3 text-slate-600 max-w-xs truncate">${item.observaciones}</td>
                     <td class="p-3 text-right">
                         <div class="flex items-center justify-end gap-1">
@@ -750,6 +783,8 @@ function doPost(e) {
                          `• *ID Interno:* ${item.id}\n` +
                          `• *Nº Remito:* ${item.remito}\n` +
                          `• *Movimiento:* ${item.tipo}\n` +
+                         `• *Proveedor:* ${item.proveedor || '-'}\n` +
+                         `• *Teléfono:* ${item.telefono || '-'}\n` +
                          `• *Fecha:* ${item.fecha} a las ${item.hora}\n` +
                          `• *Observación:* ${item.observaciones}`;
 
@@ -765,6 +800,8 @@ function doPost(e) {
             const filtered = records.filter(item => {
                 const matchesSearch = item.remito.toLowerCase().includes(searchTerm) ||
                                       item.id.toLowerCase().includes(searchTerm) ||
+                                      (item.proveedor && item.proveedor.toLowerCase().includes(searchTerm)) ||
+                                      (item.telefono && item.telefono.toLowerCase().includes(searchTerm)) ||
                                       item.observaciones.toLowerCase().includes(searchTerm);
                 
                 const matchesType = filterType === 'ALL' || item.tipo === filterType;
@@ -813,7 +850,7 @@ function doPost(e) {
             }
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "ID Interno;Numero Remito;Tipo Movimiento;Fecha;Hora;Observaciones\n";
+            csvContent += "ID Interno;Numero Remito;Tipo Movimiento;Fecha;Hora;Proveedor;Telefono;Observaciones\n";
 
             records.forEach(r => {
                 const row = [
@@ -822,6 +859,8 @@ function doPost(e) {
                     `"${r.tipo}"`,
                     `"${r.fecha}"`,
                     `"${r.hora}"`,
+                    `"${(r.proveedor || '-').replace(/"/g, '""')}"`,
+                    `"${(r.telefono || '-').replace(/"/g, '""')}"`,
                     `"${r.observaciones.replace(/"/g, '""')}"`
                 ].join(";");
                 csvContent += row + "\n";
