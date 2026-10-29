@@ -663,7 +663,7 @@ function doPost(e) {
                 image: compressedImage || currentImageData || null
             };
 
-            // Send to Google Sheets (incluyendo foto comprimida)
+            // Send to Google Sheets (incluyendo foto comprimida, proveedor y telefono)
             if (googleSheetsUrl) {
                 fetch(googleSheetsUrl, {
                     method: 'POST',
