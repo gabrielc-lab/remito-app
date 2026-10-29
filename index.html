@@ -157,9 +157,14 @@
                         
                         <!-- ID Generado (Solo Lectura) -->
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                ID Interno Autogenerado
-                            </label>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    ID Interno Autogenerado
+                                </label>
+                                <button onclick="resetIdCounter()" type="button" class="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1">
+                                    <i class="ph ph-arrows-counter-clockwise"></i> Reiniciar
+                                </button>
+                            </div>
                             <div class="relative">
                                 <input type="text" id="input-id" readonly class="w-full bg-slate-100 border border-slate-200 text-slate-600 font-mono text-sm rounded-xl px-3.5 py-2.5 font-bold cursor-not-allowed">
                                 <i class="ph ph-lock-key absolute right-3 top-3 text-slate-400"></i>
@@ -450,6 +455,21 @@ function doPost(e) {
             const formattedId = 'REC-' + String(idCounter).padStart(4, '0');
             const inputId = document.getElementById('input-id');
             if (inputId) inputId.value = formattedId;
+        }
+
+        // Reiniciar Contador de ID a 1 o al valor deseado
+        function resetIdCounter() {
+            const newNum = prompt("Ingresa el número desde el cual quieres reiniciar el ID (ej: 1 para REC-0001):", "1");
+            if (newNum !== null) {
+                const parsed = parseInt(newNum, 10);
+                if (!isNaN(parsed) && parsed > 0) {
+                    idCounter = parsed;
+                    localStorage.setItem('remito_id_counter', idCounter.toString());
+                    generateNextId();
+                } else {
+                    alert("Por favor ingresa un número válido mayor a 0.");
+                }
+            }
         }
 
         // Actualizar Fecha y Hora Actuales
