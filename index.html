@@ -515,32 +515,70 @@ function doPost(e) {
             });
         }
 
-        // Extraer Patrón de Número de Remito de Texto Reconocido
+        // Extraer Patrón de Número de Remito de Texto Reconocido (Mejorado)
         function extractRemitoNumber(text) {
-            const remitoRegex = /\b\d{4}[-\s]?\d{8}\b|\b\d{8,12}\b/;
-            const match = text.match(remitoRegex);
+            // Eliminar CUITs habituales o números de 11 dígitos que empiecen en 20, 27, 30, 33
+            const cleanText = text.replace(/\b(20|23|27|30|33|34)[-\s]?\d{8}[-\s]?\d\b/g, '');
+
+            // Buscar patrón estándar de Remito (Ej: 0001-00012345 ó 0001 00012345)
+            const remitoStandardRegex = /\b\d{4,5}[-\s]\d{6,8}\b/;
+            const matchStandard = cleanText.match(remitoStandardRegex);
 
             const inputRemito = document.getElementById('input-remito');
-            if (match) {
-                inputRemito.value = match[0].replace(/\s+/g, '');
+            if (matchStandard) {
+                inputRemito.value = matchStandard[0].replace(/\s+/g, '-');
                 inputRemito.classList.add('border-emerald-500', 'bg-emerald-50');
                 setTimeout(() => inputRemito.classList.remove('bg-emerald-50'), 1500);
-            } else {
-                const digitsOnly = text.replace(/[^0-9]/g, '');
-                if (digitsOnly.length >= 6) {
-                    inputRemito.value = digitsOnly.substring(0, 12);
-                }
+                return;
+            }
+
+            // Si no encuentra con guión/espacio, busca bloque numérico de 8 a 12 dígitos
+            const blockRegex = /\b\d{8,12}\b/;
+            const matchBlock = cleanText.match(blockRegex);
+            if (matchBlock) {
+                inputRemito.value = matchBlock[0];
             }
         }
 
+        // Helper para comprimir imagen antes de enviar a Sheets
+        function compressImageForSheets(base64Str, maxWidth = 400, quality = 0.6) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64Str;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(null);
+            });
+        }
+
         // Guardar Registro (Ingreso o Egreso)
-        function saveRecord(tipo) {
+        async function saveRecord(tipo) {
             const remitoNum = document.getElementById('input-remito').value.trim();
             
             if (!remitoNum) {
                 alert('Por favor, ingresa o escanea el número de remito.');
                 document.getElementById('input-remito').focus();
                 return;
+            }
+
+            // Comprimir imagen si existe para enviar a Sheets
+            let compressedImage = null;
+            if (currentImageData) {
+                compressedImage = await compressImageForSheets(currentImageData);
             }
 
             const record = {
@@ -550,10 +588,10 @@ function doPost(e) {
                 fecha: document.getElementById('input-fecha').value,
                 hora: document.getElementById('input-hora').value,
                 observaciones: document.getElementById('input-obs').value.trim() || '-',
-                image: currentImageData || null
+                image: compressedImage || currentImageData || null
             };
 
-            // Send to Google Sheets
+            // Send to Google Sheets (incluyendo foto comprimida)
             if (googleSheetsUrl) {
                 fetch(googleSheetsUrl, {
                     method: 'POST',
